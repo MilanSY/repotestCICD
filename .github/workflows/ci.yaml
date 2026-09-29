@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Recupcode
+      - name: Recup code
         uses: actions/checkout@v4
 
       - name: Installer Node.js
@@ -26,6 +26,9 @@ jobs:
 
       - name: dépendances
         run: npm ci
+        
+      - name: playwright install
+        run: npx playwright install --with-deps
 
       - name: tests
         run: npm test
