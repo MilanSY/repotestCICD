@@ -1,0 +1,50 @@
+name: Produire un artefact
+
+on:
+  workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recup code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+
+      - name: dépendances
+        run: npm ci
+
+      - name: build
+        run: npm run build
+
+      - name: Vérifier le fichier produit
+        run: |
+          if [ ! -s dist/index.html ]; then
+            printf '::error file=dist/index.html::Le build n a pas produit dist/index.html\n'
+            exit 1
+          fi
+      
+      - name: Sauvegarder artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+
+
+      - name: Résumé
+        if: always()
+        run: |
+          {
+            printf '### Build du projet\n'
+            printf -- '- Statut : %s\n' '${{ job.status }}'
+            printf -- '- Branche ou ref : %s\n' "$GITHUB_REF"
+            printf -- '- Commit : %s\n' "$GITHUB_SHA"
+            printf -- '- Date (UTC) : %s\n' "$(date -u '+%Y-%m-%d %H:%M:%S')"
+            printf -- '- Artefact : site-%s\n' "$GITHUB_RUN_NUMBER"
+          } >> "$GITHUB_STEP_SUMMARY"
