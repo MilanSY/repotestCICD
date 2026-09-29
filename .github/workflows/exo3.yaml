@@ -1,0 +1,102 @@
+name: Construire, tester et déployer
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environnement cible
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.18.0'
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Vérifier le build
+        run: |
+          if [ ! -s dist/index.html ]; then
+            printf '::error file=dist/index.html::Fichier de build absent ou vide\n'
+            exit 1
+          fi
+
+      - name: Publier le build
+        uses: actions/upload-artifact@v7
+        with:
+          name: application
+          path: dist/
+          if-no-files-found: error
+
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['20', '22']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Récupérer le build
+        uses: actions/download-artifact@v7
+        with:
+          name: application
+          path: dist/
+
+      - name: Tester le build récupéré
+        run: npm test
+  
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    env:
+      API_URL: ${{ vars.API_URL }}
+      TARGET: ${{ inputs.environment }}
+
+    steps:
+      - name: Récupérer le build validé
+        uses: actions/download-artifact@v7
+        with:
+          name: application
+          path: dist/
+
+      - name: Afficher la cible
+        run: |
+          printf 'Environnement : %s\n' "$TARGET"
+          printf 'API_URL : %s\n' "$API_URL"
+
+      - name: Résumer le déploiement
+        run: |
+          {
+            printf '### Déploiement\n'
+            printf -- '- Cible : %s\n' "$TARGET"
+            printf -- '- API_URL : %s\n' "$API_URL"
+            printf -- '- Commit : %s\n' "$GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
