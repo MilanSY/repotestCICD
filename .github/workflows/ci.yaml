@@ -26,9 +26,6 @@ jobs:
 
       - name: dépendances
         run: npm ci
-        
-      - name: playwright install
-        run: npx playwright install --with-deps
 
       - name: tests
         run: npm test
