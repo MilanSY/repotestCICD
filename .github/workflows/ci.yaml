@@ -1,0 +1,39 @@
+name: Validation du projet
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recupcode
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: dépendances
+        run: npm ci
+
+      - name: tests
+        run: npm test
+
+      - name: Résumer le résultat
+        if: always()
+        run: |
+          printf '### Validation du projet\n' >> "$GITHUB_STEP_SUMMARY"
+          printf 'Statut du job : %s\n' '${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
+          printf 'Ref : %s\n' "$GITHUB_REF" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Commit : %s\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
